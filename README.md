@@ -1,57 +1,145 @@
-# Eli’s christening
+# Eli’s christening invitation
 
-React 18 / Vite / Node 22+ (the current Firebase Admin SDK requires Node 22), Firebase Auth, Firestore, optional Storage, three.js, React Three Fiber, Drei, React Router, and Framer Motion. All bundled artwork is original SVG or procedural geometry. No purchased assets or services are needed to run the demo.
+A mobile-first React 18 / Vite app with original procedural chibi characters, an invitation, guest RSVP and wishes, and a parent dashboard. Requires **Node.js 22+**. Uses Firebase Authentication, Cloud Firestore, and Firebase Hosting within their Spark quotas. All bundled illustrations and 3D decorations are original; dependencies and Google Fonts use their open-source licenses.
 
-## Run locally
+## 1. Run the preview
 
 ```sh
 npm install
-cp .env.example .env
-npm run dev
-npm run build
 ```
 
-On PowerShell use `Copy-Item .env.example .env`. Without Firebase config, this is an explicitly labeled demo: all sections render but RSVP and wishes are not saved. The parent dashboard is available at `/admin`, with local-only profile/content editing stored in this browser. The existing `dist` has been replaced by this project's build. Confirm the date, venues, family names, illustrations, and portraits before inviting guests. Edit `src/data.js` for defaults. All dates use the event's explicit UTC offset, default +08:00. The current event date is November 29, 2026. See [the parent dashboard guide](docs/parent-dashboard.md).
+Copy `.env.example` to `.env`:
 
-## Firebase setup
+```powershell
+Copy-Item .env.example .env
+npm run dev -- --port 5174
+```
 
-1. Create a Firebase project and register a Web app. Copy its config into matching `VITE_FIREBASE_*` variables in `.env`. Client config is public by design; authorization comes from security rules. Never put service account keys in Vite env variables.
-2. Create Firestore in production mode. Enable Authentication → Email/password. Create parent accounts manually in the Firebase console. There is no public registration UI. Add the deployment hostname to authorized domains.
-3. Install the free Firebase CLI: `npm install -g firebase-tools`. Run `firebase login`, then `firebase use --add` to select your project.
-4. Deploy the rules before opening submissions: `firebase deploy --only firestore:rules`.
-5. Set up Application Default Credentials with `gcloud auth application-default login` (free Google Cloud CLI), or set `GOOGLE_APPLICATION_CREDENTIALS` to a securely stored admin service-account file outside this repository. Set `GOOGLE_CLOUD_PROJECT` in `.env`.
-6. Run `npm run seed`. It creates sample `event/main`, `godparents`, `schedule`, and `gallery` documents, preserving existing documents. Gallery samples refer to the bundled SVGs. Then grant each parent access: `node --env-file=.env scripts/set-admin.js parent@example.com`.
-7. Sign out and back in at `/admin` after granting the claim. Both the live dashboard and Firebase rules require the `admin: true` custom claim. Use the dedicated Ninangs & ninongs, Messages & wishes, Guest list, and Parents & Eli pages. Editors have labeled fields and color pickers; no JSON editing is required. Supported hairStyle values are short and long. Use a single `event/main` document. See [the dashboard guide](docs/parent-dashboard.md) for roles, demo behavior, and free photo hosting.
+On macOS/Linux use `cp .env.example .env`. Open the URL printed by Vite. Without Firebase values, the app runs a labeled local demo. At `/admin`, create your own 6–12 digit browser passcode. Profile edits and selected photos stay in that browser; guest submissions are disabled. Demo edits do not sync to other devices. Browser storage is limited, so keep a backup of your original photos. Connecting Firebase uses the shared database instead of importing local demo edits automatically.
 
-Collections: event, godparents, schedule, gallery, rsvps, wishes. RSVPs are private, create-only for guests; wishes are public and create-only for guests. Rules enforce fields, types, lengths, timestamps, and guest limits. Parents can edit/delete wishes and manage content. Public anonymous posting can still attract spam; use Firebase App Check if necessary and monitor your quotas. No email confirmation or paid Cloud Functions is used.
+## 2. Create the Firebase project and database
 
-## Important: Spark and Storage
+1. Open [Firebase Console](https://console.firebase.google.com/) and create a project. Google Analytics is optional. Keep the **Spark** plan; no billing account is needed for this implementation.
+2. In **Project settings → General**, add a **Web app**. Copy its configuration values into `.env` as shown below. You do not need a separate frontend API server.
+3. Open **Build → Firestore Database → Create database**. Create the **default `(default)` database**, choose production mode, and choose a location appropriate for your guests. The application uses native Cloud Firestore, not Realtime Database or a named secondary database.
+4. Open **Build → Authentication → Get started → Sign-in method** and enable **Email/Password**. Do not enable anonymous public parent registration.
+5. In **Authentication → Users → Add user**, create an account for each parent with a strong password. In Authentication settings, add `localhost` for local testing and your deployed hostname to authorized domains if they are not already present.
 
-Firebase Cloud Storage now requires Blaze billing, including existing buckets from February 3, 2026. This means the requested combination of **Spark-only + Firebase Storage uploads is no longer available**. See [Firebase's official Storage notice](https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024).
+Example `.env` (replace the placeholders with your project's values):
 
-To stay strictly on Spark without a billing account, keep compressed family images in `public/photos`, rebuild/redeploy, and enter their `/photos/example.webp` URLs through the gallery editor. Firestore, Auth, and Hosting can operate within their Spark quotas. The optional upload implementation compresses photos to WebP at max 1600 px before writing Storage; enable it only if you independently choose Blaze and review applicable quotas/costs. This project does not enable billing. For Storage use, deploy `firebase deploy --only storage` after provisioning a bucket, and set VITE_FIREBASE_STORAGE_BUCKET. Only parent admins can upload; reads are public.
+```dotenv
+VITE_FIREBASE_API_KEY=your-web-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-web-app-id
+GOOGLE_CLOUD_PROJECT=your-project
+```
 
-## Deploy to Firebase Hosting
+`VITE_FIREBASE_STORAGE_BUCKET` is optional and unused by the new device-photo flow. Firebase Web config identifies the project and is public in the built app. Access protection comes from Auth and Firestore rules. Never put an admin service-account key in a `VITE_*` variable or commit it to Git. Restart Vite after editing `.env`; rebuild before deployment.
+
+## 3. Select your project and deploy database rules/indexes
+
+Install the Firebase CLI once:
 
 ```sh
-npm run build
-firebase deploy --only hosting,firestore:rules
+npm install -g firebase-tools
+firebase login
+firebase use --add
 ```
 
-After optional Storage provisioning and rules deployment you can use `firebase deploy` for all configured resources. Spark users should keep using the targeted command above; deploying Storage on Spark will fail. Firebase Hosting rewrites `/admin` to the SPA. Rebuild after changing Vite env variables. Configure a budget if you choose billing; budget alerts do not cap charges.
+Run these commands from the project folder. Select the same project ID used in `.env`, then deploy:
 
-## Characters, artwork, and audio
+```sh
+firebase deploy --only firestore
+```
 
-`src/three/characterConfig.js` controls procedural skin, hair, outfit, hair style, and accessories. Three toys bob, wave on hover/tap, and show a small burst on tap. Godparent taps open their Firestore message. Canvas is lazy-loaded with a loading state and a static SVG fallback on render errors / no WebGL. OrbitControls allows limited horizontal rotation. Native card buttons provide keyboard access to the same profiles. Reduced-motion users get static toys and no scroll animation.
+This deploys `firestore.rules` and `firestore.indexes.json`. Do not leave the database in test mode or replace the rules with public write access.
 
-Place optional models at `public/models/godfather.glb`, `godmother.glb`, or `baby.glb`; missing models use toys. A godparent's `modelPath` overrides the default URL. Use trusted, same-origin model paths. Models should face +Z, feet y=0, approximately 2 units high. Included animation clips play automatically. Invalid GLB loading errors fall back to the procedural character. Use Blender (free) for export; compress with gltf-transform or Draco, targeting under 2 MB each. The default loader supports standard GLB and Drei's default Draco support; test custom compression before sharing.
+The included rules allow public reads of event content, public sponsor/family profiles, schedule, gallery, and wishes. Guests can only create valid RSVPs and wishes with bounded fields and server timestamps. **Guests cannot read RSVPs or edit/delete content.** Content management and private RSVP access require a Firebase account with the `admin: true` custom claim. The photo fields are excluded from single-field indexing because they may hold compressed image data; no composite indexes are required by the current queries.
 
-Optional sources (check the individual asset's license and add exact author/source/license to footer credits): [Quaternius](https://quaternius.com/) and [Kenney](https://kenney.nl/assets) have CC0 packs; [Poly Pizza](https://poly.pizza/) has CC0/CC-BY assets; [Sketchfab](https://sketchfab.com/) filter Downloadable + Creative Commons; [Mixamo](https://www.mixamo.com/) free account and applicable Adobe terms; [Blender](https://www.blender.org/) for editing; [Ready Player Me](https://readyplayer.me/) check current terms before use. Free access does not automatically mean unrestricted redistribution. No third-party model is bundled.
+## 4. Populate the collections and grant parent access
 
-Replace `public/memory-*.svg` and `public/portrait-*.svg` with family artwork/photos. These are clearly illustrated placeholders. `public/family.svg` is the static scene fallback. No official Cocomelon logo or character is included. Add a licensed `public/music/lullaby.mp3` if desired; playback is off by default, with visible toggle and error feedback when absent. Credit it in the footer. Google Fonts Fredoka / Nunito are SIL OFL.
+The seed script and admin-claim script run on your computer, never in the browser. Choose one credential method:
 
-## Accessibility and verification
+- **Google Cloud CLI:** run `gcloud auth application-default login` using an account with permission to manage this Firebase project.
+- **Service account:** in Firebase **Project settings → Service accounts**, generate a private key and store the JSON **outside this repository**. In PowerShell set its location for the current terminal:
 
-Mobile-first CSS, skip link, visible focus, semantic labels, native modal focus trapping/Escape, alt text, lazy images/map, reduced-motion support, and keyboard profile cards are included. The gallery opens a native-dialog lightbox. Forms use browser validation and Firestore validation; loading/error/success states are visible. Share uses Web Share with clipboard fallback. Open Graph tags are in index.html; replace OG image with an absolute URL to a real PNG/JPEG and add og:url for reliable messaging-app previews (SVG previews are inconsistently supported).
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\secure\eli-firebase-admin.json'
+```
 
-Run a mobile Lighthouse audit against your real deployed URL after connecting Firebase. A score above 85 is a target, not an achieved claim; 3D, fonts, and the map can affect device/network performance. No Firebase backend or security-rule emulator test can be claimed without configured credentials/emulators. Verify guest creation, forbidden RSVP reads, forbidden guest edits, parent-only writes, login/logout, image uploads if enabled, and CSV export before sharing.
+On macOS/Linux use `export GOOGLE_APPLICATION_CREDENTIALS=/secure/eli-firebase-admin.json`. This key grants privileged access; keep it private. Set `GOOGLE_CLOUD_PROJECT` in `.env` to the actual project ID.
+
+Create the sample documents:
+
+```sh
+npm run seed
+```
+
+The script preserves existing documents. It creates the following collections/documents automatically; you do not need to create them manually in the console:
+
+| Collection | Example document | Main fields | Access |
+| --- | --- | --- | --- |
+| `event` | `main` | `babyName`, `date` (YYYY-MM-DD), `time` (HH:mm), `timezone`, `venue`, `address`, `mapQuery`, `mapLink`, `reception`, `receptionAddress`, `dressCode`, `parentsNames`, `welcomeMessage`, `giftInfo` | Public read; parent writes |
+| `godparents` | `richmond`, `mae`, `eli`, sponsor IDs | `role`, `name`, `photoUrl`, `message`, optional `characterConfig`, `modelPath` | Public read; parent writes |
+| `schedule` | `ceremony`, `photos`, etc. | `time`, `title`, `description`, numeric `order` | Public read; parent writes |
+| `gallery` | Generated IDs / seed IDs | `imageUrl`, `caption`, numeric `order` | Public read; parent writes |
+| `rsvps` | Auto-generated on guest submit | `name`, integer `guestCount` (1–20), boolean `attending`, `dietaryNotes`, `message`, timestamp `createdAt` | Guest create only; parent read/manage |
+| `wishes` | Auto-generated on guest submit | `name`, `message`, timestamp `createdAt` | Public read and validated guest create; parent moderation |
+
+`rsvps` and `wishes` may be absent until the first real guest submission; this is normal. `createdAt` is generated using Firestore `serverTimestamp()`. Keep one `event/main` document. Profile roles are `father`, `mother`, `baby`, `godfather` (ninong), and `godmother` (ninang); keep one record for each family role and as many sponsors as needed. `characterConfig` contains `skin`, `hair`, `hairStyle` (`short`/`long`), `outfit`, and `accessory`.
+
+Grant each parent account its admin claim after creating it in Authentication:
+
+```sh
+node --env-file=.env scripts/set-admin.js parent@example.com
+```
+
+Replace the email and repeat for the other parent. Sign out and sign back in to refresh the claim. Open `/admin`, log in with the Firebase email/password, and create this browser’s additional passcode. A passcode alone does not grant database permissions. Detailed passcode limitations and recovery steps are in [docs/parent-dashboard.md](docs/parent-dashboard.md).
+
+## 5. Add photos directly from a phone or computer
+
+1. Open the parent dashboard and unlock it.
+2. For a profile, choose **Parents & Eli** or **Ninangs & ninongs → Edit profile**. For album pictures, choose **Photo gallery → Add photo**.
+3. Press **Choose from device** to open your phone’s photo library or computer file picker. On supported phones, **Take a photo** opens the camera.
+4. Check the preview, enter the name/message or caption, then press **Save profile** or **Save photo**. Choosing a file alone does not save it.
+
+The browser accepts JPG, PNG, WebP, AVIF, and phone HEIC/HEIF files **when the browser can decode them**. If a HEIC image is unsupported, export it as JPG/PNG first. Source files are limited to 15 MB and 48 megapixels. Photos are oriented by the browser decoder, resized to at most 1200 pixels on the long edge, flattened onto a cream background, and re-encoded as JPEG at **120 KiB or less**. Re-encoding removes source metadata. The original file on your device is not changed or backed up.
+
+To keep this flow usable on Spark, the compressed image is stored as a bounded data URL in `godparents.photoUrl` or `gallery.imageUrl`, in the same Firestore document as its details. Saving is one document write; there is no separate upload bucket, server, or paid image service. Parents must be authenticated admins to save online. Removing or replacing a photo updates that document; deleting a gallery entry removes its stored photo too. Existing HTTPS URLs and `/photos/...` paths still work through **Or use an existing image link**.
+
+**This is intended for a small event album, not full-resolution storage.** Keep the album small (for example, 20–30 selected images) and monitor Firestore reads, storage, and network quotas. Gallery/profile listeners download those compressed fields with their documents. Firestore has a 1 MiB document limit; the photo cap leaves ample room for the text fields. Browser-only demo storage is much smaller and can fill up; the form reports that error without pretending the save succeeded. Original photos should be backed up separately.
+
+Firebase Cloud Storage requires Blaze billing, so this feature deliberately does not use it. The repository's legacy `storage.rules` is inactive; `firebase.json` deploys only Firestore and Hosting. See [Firebase Storage requirements](https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024), [Firestore limits](https://firebase.google.com/docs/firestore/quotas), and [free quotas](https://firebase.google.com/docs/firestore/pricing). Spark quotas can be exhausted; free does not mean unlimited.
+
+## 6. Deploy and test the real database
+
+```sh
+npm test
+npm run build
+firebase deploy --only firestore,hosting
+```
+
+`firebase deploy` also works for the resources currently configured. Hosting serves `dist` and rewrites `/admin/...` to the React app. On another laptop, clone the repository, install Node 22+, run `npm install`, recreate `.env`, then run `npm run dev`. Never commit `.env` or the admin JSON key.
+
+Before sending invitations, check:
+
+- As a guest, load the church, program, family cards, and photos; submit an RSVP and a wish.
+- Verify the RSVP appears only after parent login; an unauthenticated attempt to read `rsvps` must be denied.
+- Confirm a normal non-admin account cannot write public content or read RSVP records.
+- Add a sponsor and device photo from the dashboard; confirm they appear on another device connected to the same project.
+- Replace/remove a photo, moderate a wish, export RSVPs, and verify the passcode lock.
+- In Firebase Console, inspect the created documents and monitor Firestore Usage. A passcode does not replace the Firebase account check or rules.
+
+Local build/unit checks do not prove deployed rules or a real database works. Production Firebase integration and device-camera behavior must be tested with your project and phones. The dashboard uses a phone-first layout with a menu, single-column forms, 44px+ controls, readable 16px inputs, photo previews, and RSVP cards; wider screens get the desktop sidebar/table.
+
+## Characters, artwork, music, and credits
+
+Original 3D parents and baby use `src/three/Chibi.jsx`, `Stage.jsx`, and `characterConfig.js`; no downloaded models, textures, HDRIs, or paid assets are needed. The family models open their cards; keyboard buttons provide the same access. Feet are anchored to the stage, shoulders connect to the body, and reduced-motion settings are respected. Canvas/images are lazy-loaded with a static SVG fallback for unsupported WebGL.
+
+Optional GLB files can replace the procedural characters at `public/models/godfather.glb`, `godmother.glb`, and `baby.glb`, or via a profile's `modelPath`. Use trusted same-origin paths, face +Z, feet at y=0, approximately two units tall, and test animations/scale before sharing. Keep models under about 2 MB using free Blender or gltf-transform/Draco tools.
+
+Optional free asset sources: [Quaternius](https://quaternius.com/), [Kenney](https://kenney.nl/assets), [Poly Pizza](https://poly.pizza/), [Sketchfab](https://sketchfab.com/) (Downloadable + Creative Commons), [Mixamo](https://www.mixamo.com/) (free Adobe account), [Blender](https://www.blender.org/), and [Ready Player Me](https://readyplayer.me/) (check current terms). Check each model's license and add required author/source/license credits in the footer. No third-party model is bundled. No official Cocomelon logo or character is included.
+
+Fredoka and Nunito are SIL OFL fonts from Google Fonts. Optional licensed audio can be placed at `public/music/lullaby.mp3`; playback is off until a guest presses the music toggle. Add audio credits to the footer. Replace illustrated placeholders with your own family photos and replace the Open Graph image with an absolute PNG/JPEG URL for reliable message previews. Lighthouse mobile >85 remains a target, not a verified result.

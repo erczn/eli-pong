@@ -9,6 +9,7 @@ import Modal from "./components/Modal";
 import * as sample from './data';
 import './style.css';
 import './dashboard.css';
+import './dashboard-mobile.css';
 const Scene=lazy(()=>import('./three/Scene'));
 const Admin=lazy(()=>import('./pages/Admin'));
 class SceneBoundary extends Component{state={failed:false};static getDerivedStateFromError(){return {failed:true}}render(){return this.state.failed?<img src="/family.svg" alt="Illustrated godparents with baby Eli"/>:this.props.children}}
