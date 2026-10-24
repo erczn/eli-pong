@@ -11,7 +11,7 @@ npm run dev
 npm run build
 ```
 
-On PowerShell use `Copy-Item .env.example .env`. Without Firebase config, this is an explicitly labeled demo: all sections render but RSVP and wishes are not saved. The existing `dist` has been replaced by this project's build. Sample date, venues, family names, illustrations, and portraits must be replaced before inviting guests. Edit `src/data.js` for demo defaults. All dates use the event's explicit UTC offset, default +08:00. The sample date is February 14, 2027.
+On PowerShell use `Copy-Item .env.example .env`. Without Firebase config, this is an explicitly labeled demo: all sections render but RSVP and wishes are not saved. The parent dashboard is available at `/admin`, with local-only profile/content editing stored in this browser. The existing `dist` has been replaced by this project's build. Confirm the date, venues, family names, illustrations, and portraits before inviting guests. Edit `src/data.js` for defaults. All dates use the event's explicit UTC offset, default +08:00. The current event date is November 29, 2026. See [the parent dashboard guide](docs/parent-dashboard.md).
 
 ## Firebase setup
 
@@ -21,7 +21,7 @@ On PowerShell use `Copy-Item .env.example .env`. Without Firebase config, this i
 4. Deploy the rules before opening submissions: `firebase deploy --only firestore:rules`.
 5. Set up Application Default Credentials with `gcloud auth application-default login` (free Google Cloud CLI), or set `GOOGLE_APPLICATION_CREDENTIALS` to a securely stored admin service-account file outside this repository. Set `GOOGLE_CLOUD_PROJECT` in `.env`.
 6. Run `npm run seed`. It creates sample `event/main`, `godparents`, `schedule`, and `gallery` documents, preserving existing documents. Gallery samples refer to the bundled SVGs. Then grant each parent access: `node --env-file=.env scripts/set-admin.js parent@example.com`.
-7. Sign out and back in at `/admin` after granting the claim. Both the UI and Firebase rules require the `admin: true` custom claim. Dashboard editors accept JSON matching the seed schema; add an optional `characterConfig` object to a godparent (skin, hair, hairStyle, outfit, accessory). Supported hairStyle values: short, long. Use a single `event/main` document.
+7. Sign out and back in at `/admin` after granting the claim. Both the live dashboard and Firebase rules require the `admin: true` custom claim. Use the dedicated Ninangs & ninongs, Messages & wishes, Guest list, and Parents & Eli pages. Editors have labeled fields and color pickers; no JSON editing is required. Supported hairStyle values are short and long. Use a single `event/main` document. See [the dashboard guide](docs/parent-dashboard.md) for roles, demo behavior, and free photo hosting.
 
 Collections: event, godparents, schedule, gallery, rsvps, wishes. RSVPs are private, create-only for guests; wishes are public and create-only for guests. Rules enforce fields, types, lengths, timestamps, and guest limits. Parents can edit/delete wishes and manage content. Public anonymous posting can still attract spam; use Firebase App Check if necessary and monitor your quotas. No email confirmation or paid Cloud Functions is used.
 

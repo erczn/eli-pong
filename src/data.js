@@ -19,19 +19,26 @@ export const event = {
 export const godparents = [
   {
     id: "richmond",
-    role: "Father",
+    role: "father",
     name: "Dada Richmond",
     photoUrl: "/portrait-mark.svg",
     message:
-      "I promise to be a guiding hand, a listening ear, and your biggest cheerleader. So blessed to be your godfather.",
+      "Being your dad is my greatest blessing, Eli. I’ll always be your guiding hand, your safe place, and your biggest cheerleader.",
   },
   {
     id: "mae",
-    role: "Mother",
+    role: "mother",
     name: "Mama Mae",
     photoUrl: "/portrait-anna.svg",
     message:
       "May your days be full of wonder, kindness, and love. I’ll be here for every little adventure, sweet Eli.",
+  },
+  {
+    id: "eli",
+    role: "baby",
+    name: "Eli",
+    photoUrl: "/baby-eli.svg",
+    message: "Tiny hands, big dreams, and a heart surrounded by love. Thank you for being part of my beautiful beginning!",
   },
   {
     id: "eric",

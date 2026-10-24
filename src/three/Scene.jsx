@@ -1,12 +1,32 @@
-import React,{ Component,Suspense,useEffect,useRef,useState,useMemo } from 'react';
+import React,{Component,Suspense,useEffect,useRef,useState,useMemo} from 'react';
 import {Shape} from 'three';
-import { Canvas,useFrame } from '@react-three/fiber';
-import { ContactShadows,OrbitControls,useGLTF,useAnimations } from '@react-three/drei';
+import {Canvas,useFrame} from '@react-three/fiber';
+import {ContactShadows,OrbitControls,useGLTF,useAnimations} from '@react-three/drei';
 import Chibi from './Chibi';
-import { characterConfig } from './characterConfig';
-class ModelBoundary extends Component { state={failed:false};static getDerivedStateFromError(){return {failed:true}}componentDidCatch(){this.props.onError()}render(){return this.state.failed?null:this.props.children} }
-function Star({x,color}){const mesh=useRef();const shape=useMemo(()=>{const s=new Shape();for(let i=0;i<10;i++){const a=i*Math.PI/5+Math.PI/2,r=i%2?.45:1;const px=Math.cos(a)*r,py=Math.sin(a)*r;i?s.lineTo(px,py):s.moveTo(px,py)}s.closePath();return s},[]);useFrame((_,delta)=>{if(!mesh.current)return;mesh.current.position.y+=delta*.45;mesh.current.rotation.z+=delta*.5});return <mesh ref={mesh} position={[x*.4,2.4+Math.abs(x)*.2,.4]} scale={.14}><shapeGeometry args={[shape]}/><meshBasicMaterial color={color} side={2}/></mesh>}
-function Ball({position,scale=1,color}){return <mesh position={position} scale={scale} castShadow><sphereGeometry args={[1,24,24]}/><meshStandardMaterial color={color} roughness={.7}/></mesh>}
-function Model({path}){const {scene,animations}=useGLTF(path);const {actions}=useAnimations(animations,scene);useEffect(()=>{Object.values(actions).forEach(a=>a?.play());return()=>Object.values(actions).forEach(a=>a?.stop())},[actions]);return <primitive object={scene} scale={.8}/>}
-function Character({role,x,onSelect,config,modelPath,reduced}){const root=useRef(),arm=useRef();const [wave,setWave]=useState(0),[burst,setBurst]=useState(0),[path,setPath]=useState(null);const c={...characterConfig[role],...config};useEffect(()=>{if(!burst)return;const timer=setTimeout(()=>setBurst(0),1300);return()=>clearTimeout(timer)},[burst]);useEffect(()=>{let live=true;const url=modelPath||`/models/${role}.glb`;fetch(url).then(async r=>{if(!r.ok)return;const bytes=new Uint8Array(await r.arrayBuffer());if(live && bytes[0]===103&&bytes[1]===108&&bytes[2]===84&&bytes[3]===70)setPath(url)}).catch(()=>{});return()=>{live=false}},[role,modelPath]);useFrame(({clock})=>{if(!root.current)return;const t=clock.elapsedTime;root.current.position.y=reduced?0:Math.sin(t*1.7+x)*.02;if(arm.current)arm.current.rotation.z=wave>Date.now()&&!reduced?1.8+Math.sin(t*10)*.28:.16});return <group ref={root} position={[x,0,role==='baby'?.35:0]} scale={role==='baby'?.78:1} onPointerOver={()=>setWave(Date.now()+1800)} onClick={e=>{e.stopPropagation();setWave(Date.now()+2000);setBurst(Date.now()+1300);onSelect?.(role)}}>{path?<ModelBoundary onError={()=>setPath(null)}><Suspense fallback={null}><Model path={path}/></Suspense></ModelBoundary>:<Chibi role={role} c={c} arm={arm}/>}{burst>Date.now()&&[-1,0,1].map(i=><Star key={i} x={i} color={i?'#f4c45d':'#e7799b'}/>)}</group>}
-export default function Scene({onSelect,godparents=[]}){const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;return <Canvas shadows camera={{position:[0,2.25,8.0],fov:38}} dpr={[1,1.5]} aria-label="Chibi godparents and baby girl Eli. Tap a godparent to read their message."><color attach="background" args={['#e8f2e4']}/><ambientLight intensity={.85}/><hemisphereLight args={['#fff4e8','#a8b9a1',1.2]}/><directionalLight position={[3,6,5]} intensity={2.7} color="#fff4e8" castShadow/><directionalLight position={[-4,3,4]} intensity={1.1} color="#e4efff"/><directionalLight position={[1,4,-3]} intensity={1.6} color="#fff0dc"/>{['godfather','baby','godmother'].map((role,i)=>{const p=godparents.find(g=>g.role===role);return <Character key={role} role={role} x={(i-1)*1.48} config={p?.characterConfig} modelPath={p?.modelPath} onSelect={onSelect} reduced={reduced}/>})}<ContactShadows position={[0,-.04,0]} opacity={.3} scale={8} blur={2.5}/><OrbitControls enableZoom={false} enablePan={false} minPolarAngle={Math.PI/2.3} maxPolarAngle={Math.PI/2.3} minAzimuthAngle={-.5} maxAzimuthAngle={.5} target={[0,1,0]}/></Canvas>}
+import Stage from './Stage';
+import {characterConfig} from './characterConfig';
+import {appearanceRole,normalizeRole} from '../services/profiles';
+class ModelBoundary extends Component{state={failed:false};static getDerivedStateFromError(){return{failed:true}}componentDidCatch(){this.props.onError()}render(){return this.state.failed?null:this.props.children}}
+function StarBurst({x,color,reduced}){const mesh=useRef();const shape=useMemo(()=>{const s=new Shape();for(let i=0;i<10;i++){const a=i*Math.PI/5+Math.PI/2,r=i%2?.45:1;i?s.lineTo(Math.cos(a)*r,Math.sin(a)*r):s.moveTo(Math.cos(a)*r,Math.sin(a)*r)}s.closePath();return s},[]);useFrame((_,delta)=>{if(!mesh.current||reduced)return;mesh.current.position.y+=delta*.35;mesh.current.rotation.z+=delta*.4});return <mesh ref={mesh} position={[x*.32,2.35+Math.abs(x)*.16,.45]} scale={.12}><shapeGeometry args={[shape]}/><meshBasicMaterial color={color} side={2}/></mesh>}
+function Model({path,reduced}){const {scene,animations}=useGLTF(path);const {actions}=useAnimations(animations,scene);useEffect(()=>{if(!reduced)Object.values(actions).forEach(a=>a?.play());return()=>Object.values(actions).forEach(a=>a?.stop())},[actions,reduced]);return <primitive object={scene} scale={.8}/>}
+function Character({person,x,onSelect,reduced}){
+ const root=useRef(),arm=useRef();const [wave,setWave]=useState(0),[burst,setBurst]=useState(0),[path,setPath]=useState(null);
+ const role=appearanceRole(person.role),baby=role==='baby',baseScale=baby?.8:1;
+ const config={...characterConfig[role],...person.characterConfig};
+ useEffect(()=>{if(!burst)return;const timer=setTimeout(()=>setBurst(0),1300);return()=>clearTimeout(timer)},[burst]);
+ useEffect(()=>{let live=true;setPath(null);const url=person.modelPath||`/models/${role}.glb`;fetch(url).then(async r=>{if(!r.ok)return;const bytes=new Uint8Array(await r.arrayBuffer());if(live&&bytes[0]===103&&bytes[1]===108&&bytes[2]===84&&bytes[3]===70)setPath(url)}).catch(()=>{});return()=>{live=false}},[role,person.modelPath]);
+ useFrame(({clock})=>{if(!root.current)return;const t=clock.elapsedTime;root.current.scale.y=baseScale*(reduced?1:1+Math.sin(t*1.5+x)*.003);if(arm.current)arm.current.rotation.z=wave>Date.now()&&!reduced?1.6+Math.sin(t*10)*.22:.13});
+ return <group ref={root} position={[x,.012,baby?.38:0]} scale={baseScale} onPointerOver={()=>setWave(Date.now()+1800)} onClick={e=>{e.stopPropagation();setWave(Date.now()+2000);setBurst(Date.now()+1300);onSelect(person)}}>
+ {path?<ModelBoundary onError={()=>setPath(null)}><Suspense fallback={<Chibi role={role} c={config} arm={arm}/>}><Model path={path} reduced={reduced}/></Suspense></ModelBoundary>:<Chibi role={role} c={config} arm={arm}/>}
+ {burst>Date.now()&&[-1,0,1].map(i=><StarBurst key={i} x={i} reduced={reduced} color={i?'#f0c66b':'#e5a6bd'}/>)}
+ </group>;
+}
+export default function Scene({onSelect,profiles=[]}){
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ return <Canvas shadows camera={{position:[0,2.7,8.8],fov:40}} dpr={[1,1.5]} aria-label="Eli with her mom and dad on a rainbow nursery stage. Tap each family member to meet them.">
+ <color attach="background" args={['#edf2e7']}/><ambientLight intensity={.7}/><hemisphereLight args={['#fff5e8','#b6c6b0',1.1]}/>
+ <directionalLight position={[3,6,5]} intensity={2.8} color="#fff3e5" castShadow shadow-mapSize={[1024,1024]} shadow-bias={-.0005}/><directionalLight position={[-4,3,4]} intensity={1} color="#e7f0ff"/><directionalLight position={[1,4,-3]} intensity={1.5} color="#fff0dc"/>
+ <Stage/>{profiles.map((person,i)=><Character key={person.id||normalizeRole(person.role)} person={person} x={(i-1)*1.3} onSelect={onSelect} reduced={reduced}/>)}
+ <ContactShadows position={[0,-.365,0]} opacity={.25} scale={9} blur={2.8}/><OrbitControls enableZoom={false} enablePan={false} minPolarAngle={1.39} maxPolarAngle={1.39} minAzimuthAngle={-.35} maxAzimuthAngle={.35} target={[0,1.25,0]}/>
+ </Canvas>;
+}
