@@ -1,0 +1,1 @@
+Optional files: godfather.glb, godmother.glb, baby.glb. No downloads required. Keep models centered at the origin, feet at y=0, roughly 2 units tall. See the root README for licenses and optimization.

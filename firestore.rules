@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function admin() { return request.auth != null && request.auth.token.admin == true; }
+  function text(x, max) { return x is string && x.size() <= max; }
+  function guest(data) { return text(data.name,80) && data.name.size() > 0 && text(data.message,1000) && data.createdAt == request.time; }
+  match /{name}/{id} {
+   allow read: if name in ['event','godparents','schedule','gallery','wishes'];
+   allow write: if admin() && name in ['event','godparents','schedule','gallery','wishes'];
+  }
+  match /rsvps/{id} {
+   allow read, update, delete: if admin();
+   allow create: if request.resource.data.keys().hasAll(['name','guestCount','attending','dietaryNotes','message','createdAt'])
+     && request.resource.data.keys().hasOnly(['name','guestCount','attending','dietaryNotes','message','createdAt'])
+     && guest(request.resource.data)
+     && request.resource.data.guestCount is int && request.resource.data.guestCount >= 1 && request.resource.data.guestCount <= 20
+     && request.resource.data.attending is bool && text(request.resource.data.dietaryNotes,300);
+  }
+  match /wishes/{id} {
+   allow create: if request.resource.data.keys().hasAll(['name','message','createdAt'])
+     && request.resource.data.keys().hasOnly(['name','message','createdAt'])
+     && guest(request.resource.data) && request.resource.data.message.size() > 0;
+  }
+ }
+}
